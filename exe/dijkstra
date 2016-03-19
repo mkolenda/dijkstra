@@ -1,0 +1,34 @@
+#!/usr/bin/env ruby
+
+$LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
+
+require 'dijkstra'
+require 'optparse'
+
+options = {}
+
+option_parser = OptionParser.new do |opts|
+  executable_name = File.basename($PROGRAM_NAME)
+  opts.banner = %{
+    djisktra is a gem that constructs a graph and finds the shortest path between two user-supplied points.
+
+    Usage: #{executable_name} my_graph.txt <point_1> <point_2>
+  }
+end
+
+begin
+  option_parser.parse!
+rescue OptionParser::InvalidOption => error
+  puts "dijkstra doesn't recognize that #{ error }"
+  exit
+rescue OptionParser::AmbiguousOption => error
+  puts "That's an #{ error}"
+  exit
+end
+
+if ARGV.count != 3
+  puts "    \nERROR: please specify a graph file, a starting point and and end point"
+  puts option_parser.help
+else
+  Dijkstra::Node.djikstra(file: ARGV[0], start: ARGV[1].to_sym, destination: ARGV[2].to_sym )
+end

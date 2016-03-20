@@ -3,6 +3,10 @@ require_relative "dijkstra/version"
 module Dijkstra
   class Node
     attr_accessor :connections, :id
+    @nodes = Hash.new
+    @best_cost = nil
+    @best_path = nil
+    @destination = nil
 
     def initialize(id)
       @id = id
@@ -14,6 +18,7 @@ module Dijkstra
       def djikstra(start:, destination:, file:)
         reset
         load_graph(file)
+        check_params(start, destination)
         self.destination = find(destination)
         i_walk_the_line(current: find(start), path: [start])
         report_winner
@@ -23,16 +28,18 @@ module Dijkstra
         nodes[node.id] = node
       end
 
-      def all
-        nodes.each_pair do |id, node|
-          puts "node: #{id} connections #{node.connections}"
-        end
-        nil
+      def ids
+        nodes.keys
       end
 
       private
 
       attr_accessor :nodes, :best_cost, :best_path, :destination
+
+      def check_params(start, destination)
+        raise(ArgumentError, "The start node #{start} is invalid. Should be one of #{ids}. Exiting") unless find(start)
+        raise(ArgumentError, "The destination node #{destination} is invalid. Should be one of #{ids}. Exiting") unless find(destination)
+      end
 
       def add_connection(from:, to:, cost:)
         from.connections << [to.id, cost]
@@ -47,19 +54,21 @@ module Dijkstra
       end
 
       def load_graph(file)
+        raise(ArgumentError, "Could not locate graph file #{file}.  Exiting.") unless File.exists?(file)
+
         File.foreach(file) do |record|
           clean_node_record!(record)
           next if record.empty?
           from, to, cost = record.split(',')
-          add_connection(from: find_or_create(from.to_sym),
-                         to:   find_or_create(to.to_sym),
+          add_connection(from: find_or_create(from),
+                         to: find_or_create(to),
                          cost: cost.to_i)
         end
         nil
       end
 
       def clean_node_record!(record)
-        record.gsub!(/[\[\]\s]/,'')
+        record.gsub!(/[\[\]\s]/, '')
       end
 
       def i_walk_the_line(current:, path:, cost: 0)
@@ -113,6 +122,7 @@ module Dijkstra
       def reset
         self.best_cost = nil
         self.best_path = nil
+        self.destination = nil
         self.nodes = Hash.new
       end
     end

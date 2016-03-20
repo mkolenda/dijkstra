@@ -5,7 +5,6 @@ $LOAD_PATH.unshift File.expand_path('../../lib', __FILE__)
 require 'dijkstra'
 require 'optparse'
 
-options = {}
 
 option_parser = OptionParser.new do |opts|
   executable_name = File.basename($PROGRAM_NAME)

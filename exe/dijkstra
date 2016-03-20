@@ -29,5 +29,5 @@ if ARGV.count != 3
   puts "    \nERROR: please specify a graph file, a starting point and and end point"
   puts option_parser.help
 else
-  Dijkstra::Node.djikstra(file: ARGV[0], start: ARGV[1].to_sym, destination: ARGV[2].to_sym )
+  Dijkstra::Compute.new(file: ARGV[0], start: ARGV[1], destination: ARGV[2] )
 end

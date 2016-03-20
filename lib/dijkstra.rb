@@ -1,12 +1,118 @@
 require_relative "dijkstra/version"
 
 module Dijkstra
+  class Compute
+    attr_accessor :destination, :best_journey
+
+    def initialize(start:, destination:, file:)
+      reset
+      GraphBuilder.build_graph(file)
+      check_params(start, destination)
+      self.destination = destination
+      i_walk_the_line(Journey.new(path: [start], cost: 0))
+      report_winner
+    end
+
+    private
+
+    def save_winner(journey)
+      self.best_journey = journey
+    end
+
+    def report_winner
+      if best_journey
+        puts("Shortest path is [#{best_journey.path.join(',')}] with total cost #{best_journey.cost}")
+      else
+        puts("No winner found")
+      end
+    end
+
+    def reset
+      Node.reset
+      self.best_journey = nil
+    end
+
+    def check_params(start, destination)
+      raise(ArgumentError, "The start node #{start} is invalid. Should be one of #{Node.ids}. Exiting") unless Node.find(start)
+      raise(ArgumentError, "The destination node #{destination} is invalid. Should be one of #{Node.ids}. Exiting") unless Node.find(destination)
+    end
+
+    def i_walk_the_line(journey)
+      return if journey.cycle?
+      return if journey.loser?(best_journey)
+
+      if journey.end?(destination)
+        save_winner(journey) if journey.winner?(best_journey)
+        return
+      end
+
+      Node.find(journey.path.last).connections.each do |connection|
+        next_node, connection_cost = *connection
+        new_cost = journey.cost + connection_cost
+        i_walk_the_line(journey.take_a_step(node: next_node, cost: new_cost))
+      end
+    end
+  end
+
+  class GraphBuilder
+    class << self
+      def build_graph(file)
+        raise(ArgumentError, "Could not locate graph file #{file}.  Exiting.") unless File.exists?(file)
+
+        File.foreach(file) do |record|
+          clean_node_record!(record)
+          next if record.empty?
+          from, to, cost = record.split(',')
+          from = Node.find_or_create(from)
+          to = Node.find_or_create(to)
+          Node.add_connection(from: from, to: to, cost: cost.to_i)
+        end
+        nil
+      end
+
+      def clean_node_record!(record)
+        record.gsub!(/[\[\]\s]/, '')
+      end
+    end
+  end
+
+  class Journey
+    attr_accessor :path, :cost
+
+    def initialize(path:, cost:)
+      @path = path # array of ids
+      @cost = cost # int
+    end
+
+    def take_a_step(node:, cost:)
+      nxt = self.dup
+      nxt.path = path.dup.push node
+      nxt.cost = cost
+      nxt
+    end
+
+    def end?(destination)
+      path.last == destination
+    end
+
+    def cycle?
+      # So bad data doesn't crash the program
+      path.length != path.uniq.length
+    end
+
+    def winner?(other_journey)
+      return true if other_journey.nil?
+      cost < other_journey.cost
+    end
+
+    def loser?(other_journey)
+      !winner?(other_journey)
+    end
+  end
+
   class Node
     attr_accessor :connections, :id
     @nodes = Hash.new
-    @best_cost = nil
-    @best_path = nil
-    @destination = nil
 
     def initialize(id)
       @id = id
@@ -15,30 +121,10 @@ module Dijkstra
     end
 
     class << self
-      def djikstra(start:, destination:, file:)
-        reset
-        load_graph(file)
-        check_params(start, destination)
-        self.destination = find(destination)
-        i_walk_the_line(current: find(start), path: [start])
-        report_winner
-      end
+      attr_accessor :nodes
 
       def add_node(node)
         nodes[node.id] = node
-      end
-
-      def ids
-        nodes.keys
-      end
-
-      private
-
-      attr_accessor :nodes, :best_cost, :best_path, :destination
-
-      def check_params(start, destination)
-        raise(ArgumentError, "The start node #{start} is invalid. Should be one of #{ids}. Exiting") unless find(start)
-        raise(ArgumentError, "The destination node #{destination} is invalid. Should be one of #{ids}. Exiting") unless find(destination)
       end
 
       def add_connection(from:, to:, cost:)
@@ -53,77 +139,19 @@ module Dijkstra
         nodes[id]
       end
 
-      def load_graph(file)
-        raise(ArgumentError, "Could not locate graph file #{file}.  Exiting.") unless File.exists?(file)
+      def ids
+        nodes.keys
+      end
 
-        File.foreach(file) do |record|
-          clean_node_record!(record)
-          next if record.empty?
-          from, to, cost = record.split(',')
-          add_connection(from: find_or_create(from),
-                         to: find_or_create(to),
-                         cost: cost.to_i)
+      def all
+        nodes.each_pair do |id, node|
+          puts "node: #{id} connections #{node.connections}"
         end
         nil
       end
 
-      def clean_node_record!(record)
-        record.gsub!(/[\[\]\s]/, '')
-      end
-
-      def i_walk_the_line(current:, path:, cost: 0)
-
-        return if cycle?(node: current, path: path)
-        return if loser?(cost)
-
-        if end?(current)
-          save_winner(cost: cost, path: path) if winner?(cost)
-          return
-        end
-
-        current.connections.each do |connection|
-          next_node, connection_cost = *connection
-          new_cost = cost + connection_cost
-          i_walk_the_line(current: find(next_node),
-                          path: path.dup.push(next_node),
-                          cost: new_cost)
-        end
-      end
-
-      def report_winner
-        if best_path
-          puts("Shortest path is [#{best_path.join(',')}] with total cost #{best_cost}")
-        else
-          puts("No winner found")
-        end
-      end
-
-      def save_winner(cost:, path:)
-        self.best_cost = cost
-        self.best_path = path
-      end
-
-      def winner?(cost)
-        best_cost.nil? || (cost < best_cost)
-      end
-
-      def loser?(cost)
-        !winner?(cost)
-      end
-
-      def end?(current)
-        current == destination
-      end
-
-      def cycle?(node:, path:)
-        path.length.zero? ? false : path.first(path.length - 1).include?(node.id)
-      end
-
       def reset
-        self.best_cost = nil
-        self.best_path = nil
-        self.destination = nil
-        self.nodes = Hash.new
+        @nodes = Hash.new
       end
     end
   end

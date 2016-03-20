@@ -11,3 +11,4 @@
 .ruby-gemset
 .idea
 .DS_Store
+.byebug_history

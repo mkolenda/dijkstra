@@ -12,7 +12,7 @@ The gem is a CLI application that accepts three arguments.
 
 `$ gem install --local ./djikstra-1.0.0.gem`
 
-`$ djikstra my_graph.txt A G`
+`$ dijkstra my_graph.txt A G`
 
 ## License
 
